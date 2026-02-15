@@ -2,15 +2,15 @@ version: "3.9" # Compose specification version
 
 services:
   postgres:
-    image: postgres:16              # PostgreSQL version
+    build: .             # PostgreSQL version
     container_name: pg-main         # Container name
     restart: unless-stopped         # Restart policy
 
     environment:
       POSTGRES_DB: maindb           # Default database (created on first start)
-      POSTGRES_USER: appuser        # Superuser
-      POSTGRES_PASSWORD: strongpassword
-      PGDATA: /var/lib/postgresql/data/pgdata # Custom data directory inside container
+      POSTGRES_USER: postgres        # Superuser
+      POSTGRES_PASSWORD: postgrespostgres
+      PGDATA: /var/lib/postgresql/pgdata # Custom data directory inside container
       TZ: Europe/Kyiv               # Timezone
 
     # PostgreSQL runtime tuning parameters
@@ -32,12 +32,14 @@ services:
       -c logging_collector=on
       -c log_directory=/var/log/postgresql
       -c log_filename=postgresql.log
+      -c shared_preload_libraries=pg_cron
+      -c cron.database_name=maindb
 
     ports:
       - "5432:5432"  # Expose Postgres to host machine
 
     volumes:
-      - pg_data:/var/lib/postgresql/data     # Persistent database storage
+      - pg_data:/var/lib/postgresql     # Persistent database storage
       - pg_logs:/var/log/postgresql          # Log storage
       - ./init:/docker-entrypoint-initdb.d   # SQL/scripts executed on first init
 
@@ -63,41 +65,41 @@ services:
         soft: 65536
         hard: 65536
 
-    networks:
-      - pgnet           # Internal docker network
+#    networks:
+#      - pgnet           # Internal docker network
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: pgadmin
-    restart: unless-stopped
+#  pgadmin:
+#    image: dpage/pgadmin4:latest
+#    container_name: pgadmin
+#    restart: unless-stopped
 
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com   # Login email
-      PGADMIN_DEFAULT_PASSWORD: strongpassword  # Login password
-      PGADMIN_CONFIG_SERVER_MODE: "True"        # Multi-user mode
-      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
-      TZ: Europe/Kyiv
+#    environment:
+#      PGADMIN_DEFAULT_EMAIL: admin@example.com   # Login email
+#      PGADMIN_DEFAULT_PASSWORD: strongpassword  # Login password
+#      PGADMIN_CONFIG_SERVER_MODE: "True"        # Multi-user mode
+#      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
+#      TZ: Europe/Kyiv
 
-    ports:
-      - "54545:80"  # Access pgAdmin via http://localhost:54545
+#    ports:
+#      - "54545:80"  # Access pgAdmin via http://localhost:54545
 
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin  # pgAdmin config storage
+#    volumes:
+#      - pgadmin_data:/var/lib/pgadmin  # pgAdmin config storage
 
       # Optional: auto-register Postgres server
       # - ./pgadmin/servers.json:/pgadmin4/servers.json
 
-    depends_on:
-      postgres:
-        condition: service_healthy   # Wait until Postgres is ready
+#    depends_on:
+#      postgres:
+#        condition: service_healthy   # Wait until Postgres is ready
 
-    networks:
-      - pgnet
+#    networks:
+#      - pgnet
 
 # Custom internal network
-networks:
-  pgnet:
-    driver: bridge
+#networks:
+#  pgnet:
+#    driver: bridge
 
 # Named volumes for persistence
 volumes:
@@ -105,5 +107,5 @@ volumes:
     driver: local
   pg_logs:
     driver: local
-  pgadmin_data:
-    driver: local
+#  pgadmin_data:
+#    driver: local
