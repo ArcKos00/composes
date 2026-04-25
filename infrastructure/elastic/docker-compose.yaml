@@ -1,0 +1,90 @@
+services:
+  elasticsearch:
+    image: 10.20.50.25:8081/elasticsearch/elasticsearch:8.13.0
+    container_name: elasticsearch
+    environment:
+      discovery.type: "single-node"
+      ES_JAVA_OPTS: "${ES_JAVA_OPTS}"
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      ELASTIC_PASSWORD: "${ELASTIC_PASSWORD}"
+      ELASTICSEARCH_USERNAME: "${ELASTICSEARCH_USERNAME}"
+      KIBANA_SYSTEM_USERNAME: "${KIBANA_SYSTEM_USERNAME}"
+      KIBANA_SYSTEM_PASSWORD: "${KIBANA_SYSTEM_PASSWORD}"
+      READER_USERNAME: "${READER_USERNAME}"
+      READER_PASSWORD: "${READER_PASSWORD}"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health -u elastic:${ELASTIC_PASSWORD:-changeme} | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - nginx_network
+
+  kibana:
+    build: .
+    container_name: kibana
+    environment:
+      ELASTICSEARCH_USERNAME: "${KIBANA_SYSTEM_USERNAME}"
+      ELASTICSEARCH_PASSWORD: "${KIBANA_SYSTEM_PASSWORD}"
+      ELASTICSEARCH_HOSTS: "${ELASTICSEARCH_HOSTS}"
+      KIBANA_HOST: "${KIBANA_HOST}"
+      SERVER_BASEPATH: "${KIBANA_SERVER_BASEPATH}"
+      ELASTIC_USERNAME: "${ELASTIC_USERNAME}"
+      ELASTIC_PASSWORD: "${ELASTIC_PASSWORD}"
+      # ELASTICSEARCH_PASSWORD: "${KIBANA_SYSTEM_PASSWORD}"
+      # ELASTICSEARCH_URL: "${ELASTICSEARCH_HOSTS}"
+      # KIBANA_SYSTEM_USERNAME: "${KIBANA_SYSTEM_USERNAME}"
+      # KIBANA_USERNAME: "${READER_USERNAME}"
+      # KIBANA_PASSWORD: "${KIBANA_SYSTEM_PASSWORD}"
+      XPACK_SECURITY_ENABLED: "true"
+      SERVER_REWRITEBASEPATH: "${KIBANA_SERVER_REWRITEBASEPATH}"
+    volumes:
+      - kibana_data:/usr/share/kibana/data
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "code=$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5601$${SERVER_BASEPATH:-}/login); [ \"$$code\" = \"200\" ] || [ \"$$code\" = \"302\" ]" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - nginx_network
+
+  apm-server:
+    image: 10.20.50.25:8081/apm/apm-server:8.13.0
+    container_name: apm-server
+    environment:
+      ELASTICSEARCH_HOSTS: "${ELASTICSEARCH_HOSTS}"
+      ELASTICSEARCH_USERNAME: "${ELASTICSEARCH_USERNAME}"
+      ELASTIC_PASSWORD: "${ELASTIC_PASSWORD}"
+      READER_USERNAME: "${READER_USERNAME}"
+      READER_PASSWORD: "${READER_PASSWORD}"
+      KIBANA_HOST: "${KIBANA_HOST}"
+      SERVER_BASEPATH: "${KIBANA_SERVER_BASEPATH}"
+      SERVER_REWRITEBASEPATH: "${KIBANA_SERVER_REWRITEBASEPATH}"
+    volumes:
+      - apm_data:/usr/share/apm-server/data
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - nginx_network
+
+networks:
+  nginx_network:
+    external: true
+
+volumes:
+  es_data:
+  kibana_data:
+  apm_data:

@@ -65,41 +65,8 @@ services:
         soft: 65536
         hard: 65536
 
-#    networks:
-#      - pgnet           # Internal docker network
-
-#  pgadmin:
-#    image: dpage/pgadmin4:latest
-#    container_name: pgadmin
-#    restart: unless-stopped
-
-#    environment:
-#      PGADMIN_DEFAULT_EMAIL: admin@example.com   # Login email
-#      PGADMIN_DEFAULT_PASSWORD: strongpassword  # Login password
-#      PGADMIN_CONFIG_SERVER_MODE: "True"        # Multi-user mode
-#      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
-#      TZ: Europe/Kyiv
-
-#    ports:
-#      - "54545:80"  # Access pgAdmin via http://localhost:54545
-
-#    volumes:
-#      - pgadmin_data:/var/lib/pgadmin  # pgAdmin config storage
-
-      # Optional: auto-register Postgres server
-      # - ./pgadmin/servers.json:/pgadmin4/servers.json
-
-#    depends_on:
-#      postgres:
-#        condition: service_healthy   # Wait until Postgres is ready
-
-#    networks:
-#      - pgnet
-
-# Custom internal network
-#networks:
-#  pgnet:
-#    driver: bridge
+    networks:
+      - nginx_network
 
 # Named volumes for persistence
 volumes:
@@ -107,5 +74,7 @@ volumes:
     driver: local
   pg_logs:
     driver: local
-#  pgadmin_data:
-#    driver: local
+
+networks:
+  nginx_network:
+    external: true

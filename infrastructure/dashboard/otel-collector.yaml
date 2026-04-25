@@ -1,0 +1,29 @@
+receivers:
+  postgresql:
+    endpoint: pg-main:5432
+    username: postgres
+    password: postgres
+    databases:
+      - maindb
+    collection_interval: 10s
+    tls:
+      insecure: true
+
+processors:
+  batch:
+
+exporters:
+  otlp/aspire:
+    endpoint: aspire-dashboard:18889
+    tls:
+      insecure: true
+
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    metrics:
+      receivers: [postgresql]
+      processors: [batch]
+      exporters: [otlp/aspire, debug]

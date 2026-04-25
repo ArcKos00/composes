@@ -1,0 +1,32 @@
+services:
+  keycloak:
+    image: 10.20.50.25:8081/keycloak/keycloak:26.1
+    container_name: keycloak
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HOSTNAME_STRICT=false
+      - KC_HTTP_RELATIVE_PATH=/auth
+      - KC_HOSTNAME=http://10.20.50.25:8080/auth
+      - KC_TRACING_ENABLED=true
+      - KC_TRACING_ENDPOINT=http://aspire-dashboard:18889
+    command:
+      - start-dev
+      - --import-realm
+      - --tracing-enabled=true
+    # ports:
+    #   - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/live HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - nginx_network
+
+networks:
+  nginx_network:
+    external: true
