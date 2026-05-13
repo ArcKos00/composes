@@ -25,7 +25,7 @@ services:
       - nginx_network
 
   kibana:
-    build: .
+    image: 10.20.50.25:8081/kibana/kibana:8.13.0
     container_name: kibana
     environment:
       ELASTICSEARCH_USERNAME: "${KIBANA_SYSTEM_USERNAME}"
