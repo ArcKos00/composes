@@ -1,0 +1,249 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: architecture
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: architecture
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-pvc
+      containers:
+        - name: redis
+          image: 10.20.50.25:8081/redis:7
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          ports:
+            - name: http
+              containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: architecture
+spec:
+  type: ClusterIP
+  selector:
+    app: redis
+  ports:
+    - name: http
+      protocol: TCP
+      port: 6379
+      targetPort: 6379
+
+# Superset Deployment, Service, Ingress
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset
+  namespace: architecture
+  labels:
+    app: superset
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset
+  template:
+    metadata:
+      labels:
+        app: superset
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: superset
+          image: 10.20.50.25:8081/apache/superset:6.1.0-pgsql
+          imagePullPolicy: Always
+
+          env:
+            - name: SUPERSET_CONFIG_PATH
+              value: /app/pythonpath/superset_config.py
+
+          envFrom:
+            - configMapRef:
+                name: redis-host-config
+            - secretRef:
+                name: superset-database-connection-secret
+            - secretRef:
+                name: superset-secret
+
+          ports:
+            - name: http
+              containerPort: 8088
+
+          volumeMounts:
+            - name: superset-config
+              mountPath: /app/pythonpath/superset_config.py
+              subPath: superset_config.py
+
+          command:
+            - /bin/sh
+            - -c
+
+          args:
+            - |
+              superset db upgrade &&
+
+              superset fab create-admin \
+                --username admin \
+                --firstname Superset \
+                --lastname Admin \
+                --email admin@admin.com \
+                --password admin || true
+
+              superset init &&
+              /usr/bin/run-server.sh
+
+      volumes:
+        - name: superset-config
+          configMap:
+            name  : superset-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: superset
+  namespace: architecture
+spec:
+  type: ClusterIP
+  selector:
+    app: superset
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8088  
+      targetPort: 8088
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: superset
+  namespace: architecture
+spec:
+  ingressClassName: haproxy
+  rules:
+    - host: superset.architecture.kub.k2.lan
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: superset
+                port:
+                  number: 8088
+
+--- # Volumes
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: architecture
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: superset-pvc
+  namespace: architecture
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+--- # ConfigMaps
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: infrastructure
+data:
+  ELASTICSEARCH_HOST: "elasticsearch.infrastructure.kub.k2.lan"
+  ELASTICSEARCH_PORT: "9200"      
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-host-config
+  namespace: architecture
+data:
+  REDIS_HOST: "redis.architecture.svc.cluster.local"
+  REDIS_PORT: "6379"
+
+--- # Secrets
+apiVersion: v1
+kind: Secret
+metadata:
+  name: superset-secret
+  namespace: architecture
+stringData:
+  SUPERSET_SECRET_KEY: PthWs8xVZ6BoucOP2BjxCObM/oTQkUUX7WQjcGYJ9gum4dRXfKZBnYl8
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: superset-database-connection-secret
+  namespace: architecture
+stringData:
+  SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://superset:superset@10.20.15.45:5432/superset
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: superset-config
+  namespace: architecture
+data:
+  superset_config.py: |
+    import os
+
+    SQLALCHEMY_DATABASE_URI = os.environ.get("SQLALCHEMY_DATABASE_URI")
+
+    SECRET_KEY = os.environ.get("SUPERSET_SECRET_KEY", "change-me")
+
+    REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
+    REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
+
+    CACHE_CONFIG = {
+        "CACHE_TYPE": "RedisCache",
+        "CACHE_DEFAULT_TIMEOUT": 300,
+        "CACHE_KEY_PREFIX": "superset_",
+        "CACHE_REDIS_HOST": REDIS_HOST,
+        "CACHE_REDIS_PORT": int(REDIS_PORT),
+    }
+
+    DATA_CACHE_CONFIG = CACHE_CONFIG
