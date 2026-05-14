@@ -6,15 +6,13 @@ services:
       - nginx_network
 
   superset:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: 10.20.50.25:8081/apache/superset:6.1.0-pgsql
     container_name: superset
     depends_on:
       - superset-redis
     environment:
       SUPERSET_SECRET_KEY: "PthWs8xVZ6BoucOP2BjxCObM/oTQkUUX7WQjcGYJ9gum4dRXfKZBnYl8"
-      SQLALCHEMY_DATABASE_URI: "postgresql+psycopg2://superset:superset@pg-main:5432/superset"
+      SQLALCHEMY_DATABASE_URI: "postgresql+psycopg2://superset:superset@10.20.15.45:5432/superset"
       REDIS_HOST: "superset-redis"
       REDIS_PORT: "6379"
     volumes:
