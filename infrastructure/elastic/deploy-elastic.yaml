@@ -1,3 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infrastructure
+
+---
 # Elasticsearch Deployment, Service, Ingress
 apiVersion: apps/v1
 kind: Deployment
@@ -109,7 +115,7 @@ spec:
             claimName: kibana-pvc
       containers:
         - name: kibana
-          image: 10.20.50.25:8081/kibana/kibana:8.13.0
+          image: 10.20.50.25:8081/kibana/kibana:8.13.0-t
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: kibana-data
