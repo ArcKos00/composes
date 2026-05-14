@@ -1,5 +1,3 @@
-version: "3.9" # Compose specification version
-
 services:
   postgres:
     build: .             # PostgreSQL version
@@ -35,8 +33,8 @@ services:
       -c shared_preload_libraries=pg_cron
       -c cron.database_name=maindb
 
-    ports:
-      - "5432:5432"  # Expose Postgres to host machine
+    #ports:
+    #  - "5432:5432"  # Expose Postgres to host machine
 
     volumes:
       - pg_data:/var/lib/postgresql     # Persistent database storage

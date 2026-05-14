@@ -115,7 +115,7 @@ spec:
             claimName: kibana-pvc
       containers:
         - name: kibana
-          image: 10.20.50.25:8081/kibana/kibana:8.13.0-t
+          image: 10.20.50.25:8081/kibana/kibana:8.13.0
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: kibana-data
